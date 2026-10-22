@@ -1,0 +1,3 @@
+#tumour_bam,normal_bam[,tumour_name,normal_name]
+/path/to/sample1/tumor.bam,/path/to/sample1/normal.bam[,sample1a,sample1b]
+/path/to/sample2/tumor.bam,/path/to/sample2/normal.bam[,sample2a,sample2b]
