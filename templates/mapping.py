@@ -21,11 +21,12 @@ def bwa_mem_template(
     # OUTPUTS
     outputs = {
         "cram": os.path.join(out_dir, sample_name + ".cram"),
-        "crai": os.path.join(out_dir, sample_name + ".cram.crai")
+        "crai": os.path.join(out_dir, sample_name + ".cram.crai"),
+        "bas": os.path.join(out_dir, sample_name + ".cram.bas")
     }
 
     # OPTIONS
-    options = vars(config.options["bwa_mem"])
+    options = config.options["bwa_mem"].to_dict()
 
     # SPEC
     sample_inputs = inputs["sample"]

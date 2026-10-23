@@ -13,8 +13,11 @@ def bam_stats_template(
 
     # OUTPUTS
     outputs = {
-        "bam_stats": inputs["bam_path"] + ".bas",
+        "bas": inputs["bam_path"] + ".bas",
     }
+
+    # OPTIONS
+    options=config.options['default'].to_dict()
 
     # SPEC
     bam_path = inputs["bam_path"]
@@ -22,7 +25,7 @@ def bam_stats_template(
     reference_index = inputs["reference_index"]
     singularity_flags = config.singularity_flags
 
-    bam_stats_file = outputs["bam_stats"]
+    bam_stats_file = outputs["bas"]
 
     spec = textwrap.dedent(
         rf"""

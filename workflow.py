@@ -5,6 +5,7 @@ import sys
 
 from gwf import Workflow
 
+from util import legalize_target_name
 from models import Config, SamplePair
 from templates.singularity import singularity_pull_template
 from templates.bam_stats import bam_stats_template
@@ -13,6 +14,7 @@ from templates.ascat import ascat_template
 from templates.brass import brass_template
 from templates.pindel import pindel_template
 from templates.caveman import caveman_template
+from templates.vagrent import vagrent_template
 
 #region Setup
 INPUT_FILE = "input.csv"
@@ -20,25 +22,24 @@ CONFIG_FILE = "config.json"
 
 # Load config
 if not os.path.exists(CONFIG_FILE):
-    sys.exit(f"Config file {CONFIG_FILE} not found!")
+    print(f"[Error]: Config file {CONFIG_FILE} not found!")
+    sys.exit(1)
 
-with open(CONFIG_FILE) as file:
-    try:
-        config = Config(**json.load(file))
-    except Exception as e:
-        print(type(e))
-        print(str(e))
-        sys.exit(1)
+with open(CONFIG_FILE) as config_fh:
+    raw_config = json.loads(config_fh.read())
+
+try:
+    config = Config.load(raw_config)
+except Exception as e:
+    print(f"[Error]: Config file {CONFIG_FILE} not found!")
+    sys.exit(1)
+
 
 # Initialise workflow
-gwf = Workflow(".", defaults=vars(config.options["default"]))
+gwf = Workflow(".", defaults=config.options["default"].to_dict())
 
 os.makedirs(config.out_dir, exist_ok=True)
 os.makedirs(config.ref_dir, exist_ok=True)
-
-#endregion
-
-#region Download images
 
 #endregion
 
@@ -137,6 +138,30 @@ wget -qO- \
 {config.post_script}
 """
 
+# ASCAT and BRASS
+ascat_brass_ref_files = {
+    "snp_gc": os.path.join(config.ref_dir, "ascat/SnpGcCorrections.tsv"),
+    "brass_filter": os.path.join(config.ref_dir, "brass/brass_np.groups.gz"),
+    "virus_sequences": os.path.join(config.ref_dir, "brass/viral.genomic.fa.2bit"),
+    "microbe_sequences": os.path.join(config.ref_dir, "brass"),
+    "gc_bin": os.path.join(config.ref_dir, "brass/500bp_windows.gc.bed.gz"),
+    "cent_telo": os.path.join(config.ref_dir, "brass/CentTelo.tsv"),
+    "cytoband": os.path.join(config.ref_dir, "brass/cytoband.txt")
+}
+
+get_ascat_brass_refs = gwf.target(
+    "get_ascat_brass_refs",
+    inputs={},
+    outputs=ascat_brass_ref_files,
+    protect=ascat_brass_ref_files.values()
+) << rf"""
+{config.pre_script}
+wget -qO- \
+    "ftp://ftp.sanger.ac.uk/pub/cancer/dockstore/human/GRCh38_hla_decoy_ebv/CNV_SV_ref_GRCh38_hla_decoy_ebv_brass6+.tar.gz" \
+    | tar -C "{config.ref_dir}" -xzv --strip-components=1;
+{config.post_script}
+"""
+
 # VAGrENT
 vagrent_ref_files = {
     "genes": os.path.join(config.ref_dir, "vagrent/codingexon_regions.indel.bed.gz"),
@@ -166,7 +191,7 @@ for image_name in config.images:
     image = config.images[image_name]
 
     image_targets[image_name] = gwf.target_from_template(
-        name=f"get_{image_name}_image",
+        name=legalize_target_name(f"get_{image_name}_image"),
         template=singularity_pull_template(
             name=image_name,
             image=image,
@@ -198,8 +223,8 @@ def _get_sample_info(path: str) -> tuple[str, str]:
 mapping_targets = {}
 bam_stats_targets = {}
 
-with open(INPUT_FILE, "r") as file:
-    for row in csv.reader(file):
+with open(INPUT_FILE, "r") as fh:
+    for row in csv.reader(fh):
         row = [field.strip() for field in row]
 
         if row[0].startswith("#"):
@@ -233,7 +258,7 @@ with open(INPUT_FILE, "r") as file:
             for sample_name, sample_path in [(tumour_name, tumour_path), (normal_name, normal_path)]:
                 if sample_name not in bam_stats_targets:
                     bam_stats_targets[sample_name] = gwf.target_from_template(
-                        name=f"{sample_name}_bam_stats",
+                        name=legalize_target_name(f"{sample_name}_bam_stats"),
                         template=bam_stats_template(
                             inputs={
                                 **bam_stats_inputs,
@@ -271,7 +296,7 @@ with open(INPUT_FILE, "r") as file:
             for sample_name, sample_inputs in [(tumour_name, tumour_files), (normal_name, normal_files)]:
                 if not sample_name in mapping_targets:
                     mapping_targets[sample_name] = gwf.target_from_template(
-                        name=f"{sample_name}_map",
+                        name=legalize_target_name(f"{sample_name}_map"),
                         template=bwa_mem_template(
                             inputs=map_inputs,
                             sample_name=sample_name,
@@ -304,7 +329,8 @@ with open(INPUT_FILE, "r") as file:
         }
 
         ascat = gwf.target_from_template(
-            name=f"{sample_pair.name}_ascat", template=ascat_template(
+            name=legalize_target_name(f"{sample_pair.name}_ascat"),
+            template=ascat_template(
                 inputs=ascat_inputs,
                 sample_pair=sample_pair,
                 config=config
@@ -328,7 +354,7 @@ with open(INPUT_FILE, "r") as file:
         }
 
         brass_input = gwf.target_from_template(
-            name=f"{sample_pair.name}_brass_input",
+            name=legalize_target_name(f"{sample_pair.name}_brass_input"),
             template=brass_template(
                 inputs=brass_inputs,
                 sample_pair=sample_pair,
@@ -338,7 +364,7 @@ with open(INPUT_FILE, "r") as file:
         )
 
         brass_cover = gwf.target_from_template(
-            name=f"{sample_pair.name}_brass_cover",
+            name=legalize_target_name(f"{sample_pair.name}_brass_cover"),
             template=brass_template(
                 inputs={
                     **brass_inputs,
@@ -351,7 +377,7 @@ with open(INPUT_FILE, "r") as file:
         )
 
         brass = gwf.target_from_template(
-            name=f"{sample_pair.name}_brass",
+            name=legalize_target_name(f"{sample_pair.name}_brass"),
             template=brass_template(
                 inputs={
                     **brass_inputs,
@@ -377,7 +403,7 @@ with open(INPUT_FILE, "r") as file:
         }
 
         pindel = gwf.target_from_template(
-            name=f"{sample_pair.name}_pindel",
+            name=legalize_target_name(f"{sample_pair.name}_pindel"),
             template=pindel_template(
                 inputs = pindel_inputs,
                 sample_pair=sample_pair,
@@ -393,7 +419,7 @@ with open(INPUT_FILE, "r") as file:
         }
 
         annotate_pindel = gwf.target_from_template(
-            name=f"{sample_pair.name}_annotate_pindel",
+            name=legalize_target_name(f"{sample_pair.name}_annotate_pindel"),
             template=vagrent_template(
                 inputs=annotate_pindel_inputs,
                 sample_pair=sample_pair,
@@ -404,7 +430,7 @@ with open(INPUT_FILE, "r") as file:
         # CAVEMAN
         caveman_inputs = {
             **sample_pair_inputs,
-            "tumor_copynumber": ascat.outputs["tumor_copynumber"],
+            "tumour_copynumber": ascat.outputs["tumour_copynumber"],
             "normal_copynumber": ascat.outputs["normal_copynumber"],
             "sample_stats": ascat.outputs["sample_stats"],
             "germline_indels": pindel.outputs["germline_bed"],
@@ -420,7 +446,7 @@ with open(INPUT_FILE, "r") as file:
 
         # setup
         caveman_setup = gwf.target_from_template(
-            name=f"{sample_pair.name}_caveman_setup", 
+            name=legalize_target_name(f"{sample_pair.name}_caveman_setup"), 
             template=caveman_template(
                 inputs=caveman_inputs,
                 sample_pair=sample_pair,
@@ -433,7 +459,7 @@ with open(INPUT_FILE, "r") as file:
         caveman_split_jobs = 24
         caveman_split_array = [
             gwf.target_from_template(
-                name=f"{sample_pair.name}_caveman_split_{i}", 
+                name=legalize_target_name(f"{sample_pair.name}_caveman_split_{i}"), 
                 template=caveman_template(
                     inputs={
                         **caveman_inputs,
@@ -451,7 +477,7 @@ with open(INPUT_FILE, "r") as file:
 
         # split_concat
         caveman_split_concat = gwf.target_from_template(
-            name=f"{sample_pair.name}_caveman_split_concat", 
+            name=legalize_target_name(f"{sample_pair.name}_caveman_split_concat"), 
             template=caveman_template(
                 inputs={
                     **caveman_inputs,
@@ -466,7 +492,7 @@ with open(INPUT_FILE, "r") as file:
         # mstep [1-N]
         caveman_mstep_array = [
             gwf.target_from_template(
-                name=f"{sample_pair.name}_caveman_mstep_{i}", 
+                name=legalize_target_name(f"{sample_pair.name}_caveman_mstep_{i}"),
                 template=caveman_template(
                     inputs={
                         **caveman_inputs,
@@ -484,7 +510,7 @@ with open(INPUT_FILE, "r") as file:
 
         # merge
         caveman_merge = gwf.target_from_template(
-            name=f"{sample_pair.name}_caveman_merge", 
+            name=legalize_target_name(f"{sample_pair.name}_caveman_merge"), 
             template=caveman_template(
                 inputs={
                     **caveman_inputs,
@@ -499,7 +525,7 @@ with open(INPUT_FILE, "r") as file:
         # estep [1-N]
         caveman_estep_array = [
             gwf.target_from_template(
-                name=f"{sample_pair.name}_caveman_estep_{i}", 
+                name=legalize_target_name(f"{sample_pair.name}_caveman_estep_{i}"), 
                 template=caveman_template(
                     inputs={
                         **caveman_inputs,
@@ -517,7 +543,7 @@ with open(INPUT_FILE, "r") as file:
 
         # merge
         caveman_merge_results= gwf.target_from_template(
-            name=f"{sample_pair.name}_caveman_merge_results", 
+            name=legalize_target_name(f"{sample_pair.name}_caveman_merge_results"), 
             template=caveman_template(
                 inputs={
                     **caveman_inputs,
@@ -531,7 +557,7 @@ with open(INPUT_FILE, "r") as file:
 
         # add_ids
         caveman_add_ids= gwf.target_from_template(
-            name=f"{sample_pair.name}_caveman_add_ids", 
+            name=legalize_target_name(f"{sample_pair.name}_caveman_add_ids"), 
             template=caveman_template(
                 inputs={
                     **caveman_inputs,
@@ -545,7 +571,7 @@ with open(INPUT_FILE, "r") as file:
 
         # flag
         caveman_flag = gwf.target_from_template(
-            name=f"{sample_pair.name}_caveman_flag", 
+            name=legalize_target_name(f"{sample_pair.name}_caveman_flag"), 
             template=caveman_template(
                 inputs={
                     **caveman_inputs,
@@ -565,7 +591,7 @@ with open(INPUT_FILE, "r") as file:
         }
 
         annotate_caveman = gwf.target_from_template(
-            name=f"{sample_pair.name}_annotate_caveman",
+            name=legalize_target_name(f"{sample_pair.name}_annotate_caveman"),
             template=vagrent_template(
                 inputs=annotate_caveman_inputs,
                 sample_pair=sample_pair,

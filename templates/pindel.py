@@ -25,10 +25,10 @@ def pindel_template(
     }
 
     # OPTIONS
-    options = vars(config.options["pindel"])
+    options = config.options["pindel"].to_dict()
 
     # SPEC
-    tumor_bam = inputs["tumor_path"]
+    tumour_bam = inputs["tumour_path"]
     normal_bam = inputs["normal_path"]
     reference_genome = inputs["reference_genome"]
     simple_repeats = inputs["simple_repeats"]
@@ -57,7 +57,7 @@ def pindel_template(
         pindel.pl \
             -outdir {out_dir} \
             -reference {reference_genome} \
-            -tumour {tumor_bam} \
+            -tumour {tumour_bam} \
             -normal {normal_bam} \
             -simrep {simple_repeats} \
             -unmatched {unmatched} \

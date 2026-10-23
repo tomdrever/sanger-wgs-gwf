@@ -26,9 +26,9 @@ def brass_template(
 
     # OPTIONS
     brass_step_options = {
-        "brass_input": vars(config.options["brass_input"]),
-        "brass_cover": vars(config.options["brass_cover"]),
-        "brass_main": vars(config.options["brass_main"])
+        "brass_input": config.options["brass_input"].to_dict(),
+        "brass_cover": config.options["brass_cover"].to_dict(),
+        "brass_main": config.options["brass_main"].to_dict()
     }
 
     if f"brass_{process}" not in brass_step_options:
@@ -36,7 +36,7 @@ def brass_template(
     options = brass_step_options[f"brass_{process}"]
 
     # SPEC
-    tumor_bam = inputs["tumor_path"]
+    tumour_bam = inputs["tumour_path"]
     normal_bam = inputs["normal_path"]
 
     reference_genome = inputs["reference_genome"]
@@ -96,7 +96,7 @@ def brass_template(
             -gcbin {gc_bin} \
             -centtel {cent_telo} \
             -cytoband {cytoband} \
-            -tumour {tumor_bam} \
+            -tumour {tumour_bam} \
             -normal {normal_bam} \
             -outdir {out_dir} \
             {add_args}

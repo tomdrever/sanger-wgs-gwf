@@ -15,7 +15,7 @@ def ascat_template(
 
     # OUTPUTS
     outputs = {
-        "tumor_copynumber": os.path.join(out_dir, "tumor.cn.bed"),
+        "tumour_copynumber": os.path.join(out_dir, "tumour.cn.bed"),
         "normal_copynumber": os.path.join(out_dir, "normal.cn.bed"),
         "sample_stats": os.path.join(
             out_dir, sample_pair.tumour + ".samplestatistics.txt"
@@ -24,16 +24,16 @@ def ascat_template(
     }
 
     # OPTIONS
-    options = vars(config.options["ascat"])
+    options = config.options["ascat"].to_dict()
 
     # SPEC
     ascat_cn = os.path.join(out_dir, f"{sample_pair.tumour}.copynumber.caveman.csv")
 
     normal_bam = inputs["normal_path"]
-    tumor_bam = inputs["tumor_path"]
+    tumour_bam = inputs["tumour_path"]
 
     normal_copynumber = outputs["normal_copynumber"]
-    tumor_copynumber = outputs["tumor_copynumber"]
+    tumour_copynumber = outputs["tumour_copynumber"]
 
     snp_gc = inputs["snp_gc"]
     reference_genome = inputs["reference_genome"]
@@ -60,7 +60,7 @@ def ascat_template(
         set -euo pipefail
         ascat.pl \
             -outdir {out_dir} \
-            -tumour {tumor_bam} \
+            -tumour {tumour_bam} \
             -normal {normal_bam} \
             -snp_gc {snp_gc} \
             -reference {reference_genome} \
@@ -79,7 +79,7 @@ def ascat_template(
     done < "{ascat_cn}" > {normal_copynumber} 
     while IFS=',' read -r _ col2 col3 col4 _ _ col7 _; do
         echo -e "${{col2}}\t$((col3-1))\t${{col4}}\t${{col7}}"
-    done < "{ascat_cn}" > {tumor_copynumber}
+    done < "{ascat_cn}" > {tumour_copynumber}
     touch {done}
     {config.post_script}
     """

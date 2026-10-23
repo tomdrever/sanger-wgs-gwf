@@ -11,12 +11,16 @@ def singularity_pull_template(
         image: SingularityImage,
         config: Config
     ) -> AnonymousTarget:
+    """Run `singularity pull` to download a specified singularity image. Uses default job options."""
     sif_file_name = f"{name}_{image.version}.sif"
 
     # OUTPUTS
     outputs = {
         "image": os.path.join(config.image_dir, sif_file_name),
     }
+
+    # OPTIONS
+    options = config.options['default'].to_dict()
 
     # SPEC
     spec = textwrap.dedent(
@@ -32,5 +36,5 @@ def singularity_pull_template(
     )
 
     return AnonymousTarget(
-        inputs=[], outputs=outputs, options=options, spec=spec, protect=[outputs["image"]] # type: ignore
+        inputs=[], options=options, outputs=outputs, spec=spec, protect=[outputs["image"]] # type: ignore
     )

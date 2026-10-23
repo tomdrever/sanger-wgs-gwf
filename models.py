@@ -1,5 +1,6 @@
-from dataclasses import dataclass
+from __future__ import annotations
 
+from dataclasses import dataclass, asdict
 
 @dataclass(slots=True, frozen=True)
 class SingularityImage:
@@ -16,8 +17,11 @@ class SingularityImage:
 class ResourceConfig:
     """HPC scheduler job configuration"""
     cores: int
-    memory: int
-    queue: int
+    memory: str
+    queue: str
+
+    def to_dict(self):
+        return asdict(self)
 
 
 @dataclass(slots=True)
@@ -42,6 +46,15 @@ class Config:
     post_script: str
     singularity_flags: str
     build: str
+    caveman_step_jobs: int
     mapping: bool
     images: dict[str, SingularityImage]
     options: dict[str, ResourceConfig]
+
+    @staticmethod
+    def load(raw_dict: dict) -> Config:
+        """Load a Config instance from a python dict loaded from a config.json file"""
+        config = Config(**raw_dict)
+        config.images = {image: SingularityImage(**raw_dict["images"][image]) for image in raw_dict["images"]}
+        config.options = {option: ResourceConfig(**raw_dict["options"][option]) for option in raw_dict["options"]} 
+        return config

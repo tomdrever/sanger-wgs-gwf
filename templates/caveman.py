@@ -38,13 +38,13 @@ def caveman_template(
     add_steps = ""
     match process:
         case "setup" | "split" | "split_concat":
-            options = vars(config.options["caveman_small"])
+            options = config.options["caveman_small"].to_dict()
         case "mstep" | "estep":
-            options = vars(config.options["caveman_step"])
+            options = config.options["caveman_step"].to_dict()
         case "merge" | "merge_results" | "add_ids": 
-            options = vars(config.options["caveman_medium"])
+            options = config.options["caveman_medium"].to_dict()
         case "flag":
-            options = vars(config.options["caveman_flag"])
+            options = config.options["caveman_flag"].to_dict()
             # Print versions after flagging (final step)
             add_steps += f"caveman.pl --version > {out_dir}/caveman.version.txt"
         case _:
@@ -52,11 +52,11 @@ def caveman_template(
             raise ValueError(f"Invalid process {process} for CaVEMan")
 
     # SPEC
-    tumor_bam = inputs["tumor_path"]
+    tumour_bam = inputs["tumour_path"]
     normal_bam = inputs["normal_path"]
     
     normal_copynumber = inputs["normal_copynumber"]
-    tumor_copynumber = inputs["tumor_copynumber"]
+    tumour_copynumber = inputs["tumour_copynumber"]
     sample_stats = inputs["sample_stats"]
 
     germline_indels = inputs["germline_indels"]
@@ -67,7 +67,7 @@ def caveman_template(
     flag_to_vcf_config = inputs["flag_to_vcf_config"]
     genome_gap = inputs["genome_gap_tab"]
 
-    tumor_copynumber_def = 5
+    tumour_copynumber_def = 5
     normal_copynumber_def = 2
     assembly = "NCBI38"
     protocol = "WGS"
@@ -94,10 +94,10 @@ def caveman_template(
             -read-count {read_count} \
             -outdir {out_dir} \
             -reference {reference_index} \
-            -tumour-bam {tumor_bam} \
+            -tumour-bam {tumour_bam} \
             -normal-bam {normal_bam} \
             -ignore-file {genome_gap} \
-            -tumour-cn {tumor_copynumber} \
+            -tumour-cn {tumour_copynumber} \
             -normal-cn {normal_copynumber} \
             -germline-indel {germline_indels} \
             -species {species} \
@@ -110,7 +110,7 @@ def caveman_template(
             -tumour-protocol {protocol} \
             -flagConfig {flag_config} \
             -flagToVcfConfig {flag_to_vcf_config} \
-            -tum-cn-default {tumor_copynumber_def} \
+            -tum-cn-default {tumour_copynumber_def} \
             -norm-cn-default {normal_copynumber_def} \
             -threads {cores} \
             {add_args}
