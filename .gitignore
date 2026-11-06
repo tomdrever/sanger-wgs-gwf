@@ -5,3 +5,6 @@ __pycache__/
 .gwf/
 input.csv
 config.json
+
+notebooks/
+.claude/
